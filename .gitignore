@@ -2,7 +2,7 @@
 
 *.pt
 *.rar
-data/*
+*.npz
 sleep-edf-database-expanded-1.0.0/*
 __pycache__
 .idea
