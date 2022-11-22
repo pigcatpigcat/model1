@@ -28,8 +28,8 @@ def train(model,epochs,dataloader,model_name):
             if idx % 200 == 0:
                 print(epoch, idx, loss.item())
         print("train epoch {}".format(epoch))
-        model_name=model_name+".pt"
-        torch.save(model.state_dict(), model_name)
+
+        torch.save(model.state_dict(), model_name+".pt")
 
 
 

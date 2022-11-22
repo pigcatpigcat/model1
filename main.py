@@ -134,18 +134,20 @@ def captum():
 #     writer.close()
 
 
-from model import MyModel2u,MyModel6u,MyModel_RectifiedLinearAttention2u
+from model import MyModel2u,MyModel6u,MyModel_RectifiedLinearAttention2u,MyModel_SAMNet
 if __name__ == "__main__":
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = True
     batch_size=32
-    model_name="MyModel_RectifiedLinearAttention2u"
+    model_name="MyModel_SAMNet"
     if(model_name=="MyModel2u"):
         net=MyModel2u.MyModel()
     elif(model_name=="MyModel6u"):
         net=MyModel6u.MyModel()
     elif(model_name=="MyModel_RectifiedLinearAttention2u"):
         net=MyModel_RectifiedLinearAttention2u.MyModel()
+    elif(model_name=="MyModel_SAMNet"):
+        net=MyModel_SAMNet.MyModel()
 
     if(os.path.exists(model_name+".pt")):
         net.load_state_dict(torch.load(model_name+".pt"))
@@ -156,13 +158,12 @@ if __name__ == "__main__":
     for i in range(len(npz_files)):
         npz_files[i]="data/"+npz_files[i]
 
-    # t1 = time.perf_counter()
-    # dataloader1= dataloader.getDataloader(npz_files[0:1], batch_size=batch_size, num_worker=2, shuffle=True)
-    # print("data is ready")
-    # train(net,20,dataloader1,model_name)
-    # # torch.save(net.state_dict(),model_name)
-    # t2 = time.perf_counter()
-    # print(t2 - t1)
+    t1 = time.perf_counter()
+    dataloader1= dataloader.getDataloader(npz_files[0:1], batch_size=batch_size, num_worker=2, shuffle=True)
+    print("data is ready")
+    train(net,5,dataloader1,model_name)
+    t2 = time.perf_counter()
+    print(t2 - t1)
 
 
     net.eval()
