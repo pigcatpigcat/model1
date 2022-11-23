@@ -11,7 +11,7 @@ def train(model,epochs,dataloader,model_name):
     loss_fn=loss_fn.cuda()
     b1 = 0.9
     b2 = 0.999
-    learning_rate=1e-5
+    learning_rate=1e-6
     optimizer=torch.optim.Adam(model.parameters(),lr=learning_rate,betas=(b1,b2))
 
     for epoch in range(epochs):

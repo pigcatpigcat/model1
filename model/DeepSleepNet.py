@@ -126,11 +126,12 @@ class DeepSleepNet_CNN(nn.Module):  # input channel = 8channel / output = 5
         return x
 
 class DeepSleepNet(nn.Module):
-    def __init__(self,in_channel=1, out_channel=512, layer=[64, 128, 128, 128], activation='relu', sample_rate=100,
+    def __init__(self,in_channel=3, out_channel=512, layer=[64, 128, 128, 128], activation='relu', sample_rate=100,
                  dropout_p=0.5):
         super(DeepSleepNet, self).__init__()
         self.CNN=DeepSleepNet_CNN(in_channel, out_channel, layer, activation, sample_rate,
                  dropout_p)
+        self.in_channel=in_channel
         self.dropout1=nn.Dropout(p=dropout_p)
         self.lstm1=nn.LSTM(out_channel,512,bidirectional=True)
         self.dropout2 = nn.Dropout(p=dropout_p)
@@ -141,16 +142,23 @@ class DeepSleepNet(nn.Module):
         self.fc2=nn.Linear(1024,5)
         self.softmax=nn.Softmax(dim=1)
     def forward(self,x):
-        self.x=self.CNN(x)
-        self.x=self.dropout1(self.x)
-        self.y,(self.hn,self.cn)=self.lstm1(self.x)
-        self.x=self.fc(self.x)
-        self.y=self.dropout2(self.y)
-        self.y,(self.hn,self.cn)=self.lstm2(self.y,(self.hn,self.cn))
-        self.y=self.dropout3(self.y)
-        self.y=torch.add(self.x,self.y)
-        self.y=self.dropout4(self.y)
-        self.y=self.fc2(self.y)
+        if(self.in_channel==6):
+            x=torch.cat((x,torch.fft.fft(x).real),dim=1)
+        x=self.CNN(x)
+        x=self.dropout1(x)
+        y,(self.hn,self.cn)=self.lstm1(x)
+        x=self.fc(x)
+        y=self.dropout2(y)
+        y,(self.hn,self.cn)=self.lstm2(y,(self.hn,self.cn))
+        y=self.dropout3(y)
+        y=torch.add(x,y)
+        y=self.dropout4(y)
+        y=self.fc2(y)
 
-        return self.softmax(self.y)
+        return self.softmax(y)
 
+# net=DeepSleepNet()
+# net.eval()
+# x=torch.rand((1,3,3000))
+# y=net(x)
+# print(y)

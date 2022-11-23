@@ -12,7 +12,7 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import os
-
+from model import MyModel2u,MyModel6u,MyModel_RectifiedLinearAttention2u,MyModel_SAMNet,DeepSleepNet
 os.environ["KMP_DUPLICATE_LIB_OK"]  =  "TRUE"
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -134,12 +134,12 @@ def captum():
 #     writer.close()
 
 
-from model import MyModel2u,MyModel6u,MyModel_RectifiedLinearAttention2u,MyModel_SAMNet
+
 if __name__ == "__main__":
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = True
-    batch_size=32
-    model_name="MyModel_SAMNet"
+    batch_size=128
+    model_name="DeepSleepNet_no_fft"
     if(model_name=="MyModel2u"):
         net=MyModel2u.MyModel()
     elif(model_name=="MyModel6u"):
@@ -148,7 +148,10 @@ if __name__ == "__main__":
         net=MyModel_RectifiedLinearAttention2u.MyModel()
     elif(model_name=="MyModel_SAMNet"):
         net=MyModel_SAMNet.MyModel()
-
+    elif(model_name=="DeepSleepNet"):
+        net=DeepSleepNet.DeepSleepNet(in_channel=6)
+    elif(model_name=="DeepSleepNet_no_fft"):
+        net=DeepSleepNet.DeepSleepNet(in_channel=3)
     if(os.path.exists(model_name+".pt")):
         net.load_state_dict(torch.load(model_name+".pt"))
 
@@ -159,9 +162,9 @@ if __name__ == "__main__":
         npz_files[i]="data/"+npz_files[i]
 
     t1 = time.perf_counter()
-    dataloader1= dataloader.getDataloader(npz_files[0:1], batch_size=batch_size, num_worker=2, shuffle=True)
+    dataloader1= dataloader.getDataloader(npz_files[0:122], batch_size=batch_size, num_worker=0, shuffle=True)
     print("data is ready")
-    train(net,5,dataloader1,model_name)
+    train(net,10,dataloader1,model_name)
     t2 = time.perf_counter()
     print(t2 - t1)
 
