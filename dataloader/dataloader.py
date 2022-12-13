@@ -173,12 +173,13 @@ def data_generator_np(training_files, subject_files, batch_size):
 
     return train_loader, test_loader, counts
 
-def getDataloader(npz_files,batch_size,num_worker=0,shuffle=True,fft=False):
+def getDataloader(npz_files,batch_size,num_worker=0,shuffle=True,fft=False,pin_memory=True):
     dataset1 = LoadDataset_from_numpy(npz_files,fft)
+    # train_sampler = torch.utils.data.distributed.DistributedSampler(dataset1)
     dataloader1 = torch.utils.data.DataLoader(dataset=dataset1,
                                               batch_size=batch_size,
                                               shuffle=shuffle,
                                               drop_last=False,
                                               num_workers=num_worker,
-                                              pin_memory=True)
+                                              pin_memory=pin_memory)
     return dataloader1

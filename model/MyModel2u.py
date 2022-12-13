@@ -151,14 +151,14 @@ class U_structure(BasicModel):
         self.padding = 'same'
         self.sleep_epoch_length = 3000
         self.sequence_length = 20
-        self.filters = [16, 32, 64, 128, 256]
+        self.filters = [8, 16, 32, 64, 128]
         self.kernel_size = 5
         self.pooling_sizes = [10, 6, 4, 2]
         self.dilation = [1, 2, 3, 4]
 
-        self.u_depths = [4, 4, 4, 4]
+        self.u_depths = [3, 3, 3, 3]
         self.u_inner_filter = 8
-        self.mse_filters = [32, 24, 46, 8, 5]
+        self.mse_filters = [32, 24, 16, 8, 5]
         self.relu = nn.ReLU(inplace=True)
 
         # encoder1
@@ -254,18 +254,18 @@ class U_structure(BasicModel):
         self.d4 = nn.Conv2d(self.filters[3], self.filters[3] // 2, kernel_size=(1, 1), stride=(1, 1),
                             padding=self.padding)
         # decoder3
-        self.creat_u_encoder_d3 = creat_u_encoder(110, self.filters[2], self.kernel_size, self.pooling_sizes[2],
+        self.creat_u_encoder_d3 = creat_u_encoder(48, self.filters[2], self.kernel_size, self.pooling_sizes[2],
                                                   self.u_inner_filter, depth=self.u_depths[2], padding=self.padding)
         self.d3 = nn.Conv2d(self.filters[2], self.filters[2] // 2, kernel_size=(1, 1), stride=(1, 1),
                             padding=self.padding)
 
         # decoder2
-        self.creat_u_encoder_d2 = creat_u_encoder(56, self.filters[1], self.kernel_size, self.pooling_sizes[1],
+        self.creat_u_encoder_d2 = creat_u_encoder(40, self.filters[1], self.kernel_size, self.pooling_sizes[1],
                                                   self.u_inner_filter, depth=self.u_depths[1], padding=self.padding)
         self.d2 = nn.Conv2d(self.filters[1], self.filters[1] // 2, kernel_size=(1, 1), stride=(1, 1),
                             padding=self.padding)
         # decoder1
-        self.creat_u_encoder_d1 = creat_u_encoder(48, self.filters[0], self.kernel_size, self.pooling_sizes[0],
+        self.creat_u_encoder_d1 = creat_u_encoder(40, self.filters[0], self.kernel_size, self.pooling_sizes[0],
                                                   self.u_inner_filter, depth=self.u_depths[0], padding=self.padding)
         self.d1 = nn.Conv2d(self.filters[0], self.filters[0] // 2, kernel_size=(1, 1), stride=(1, 1),
                             padding=self.padding)
@@ -418,7 +418,7 @@ class AFR(nn.Module):
     def __init__(self, block, planes, blocks, stride=1):
         super(AFR, self).__init__()
 
-        self.inplanes=32
+        self.inplanes=16
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
@@ -504,6 +504,6 @@ class MyModel(nn.Module):
 
 # net=MyModel()
 # net.eval()
-# x=torch.rand((1,6,3000))
+# x=torch.rand((1,3,3000))
 # y=net(x)
 # print(y)

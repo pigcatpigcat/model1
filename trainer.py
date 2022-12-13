@@ -3,19 +3,59 @@ import torch.optim
 import torch.nn as nn
 import torch.nn.functional as F
 import model.DeepSleepNet
+from torch.utils.tensorboard import SummaryWriter
+import matplotlib.pyplot as plt
 
 device='cuda'
-def train(model,epochs,dataloader,model_name):
 
+def model_test(model,test_dataloader):
+    model.eval()
+    total_correct = 0
+    with torch.no_grad():
+        for x, y in test_dataloader:
+            x = x.cuda()
+            y=y.cuda()
+            out = model(x)
+            pred = out.argmax(dim=1)
+            correct = pred.eq(y).sum().float().item()
+            total_correct += correct
+        total = len(test_dataloader.dataset)
+        acc = total_correct / total
+    # 准确率
+    print("acc %f"%acc)
+    return acc
+def plot_loss_curve(loss_list,model_name):
+    plt.clf()
+    plt.figure(figsize=(10, 6))
+    plt.plot(loss_list, label='loss')
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
+    plt.legend()
+    plt.savefig("log/"+model_name+"loss")
+
+def plot_acc_curve(acc_list,model_name):
+    plt.clf()
+    plt.figure(figsize=(10, 6))
+    plt.plot(acc_list, label='acc')
+    plt.xlabel('epoch')
+    plt.ylabel('acc')
+    plt.legend()
+    plt.savefig("log/"+model_name+"_acc")
+def train(model,epochs,train_loader,test_loader,model_name):
+    model.train()
     loss_fn=nn.CrossEntropyLoss()
     loss_fn=loss_fn.cuda()
-    b1 = 0.9
-    b2 = 0.999
-    learning_rate=1e-6
-    optimizer=torch.optim.Adam(model.parameters(),lr=learning_rate,betas=(b1,b2))
-
+    train_loss=[]
+    acc_list=[]
+    learning_rate=1e-4
+    optimizer=torch.optim.Adam(model.parameters(),lr=learning_rate,betas=(0.9,0.999))
+    # writer=SummaryWriter("log/"+model_name)
     for epoch in range(epochs):
-        for idx,(x,y) in enumerate(dataloader):
+        # print("train epoch {}".format(epoch))
+        train_loss_sum=0
+        n=0
+        c=0
+        for idx,(x,y) in enumerate(train_loader):
             torch.cuda.empty_cache()
             x=x.cuda()
             y=y.cuda()
@@ -25,11 +65,17 @@ def train(model,epochs,dataloader,model_name):
             loss=loss_fn(pred,y.long())
             loss.backward()
             optimizer.step()
-            if idx % 200 == 0:
-                print(epoch, idx, loss.item())
-        print("train epoch {}".format(epoch))
-
+            c+=1
+            train_loss_sum+=loss.item()
+        train_loss.append(train_loss_sum/c)
+        print(('epoch %d, train loss %f'% (epoch + 1, train_loss_sum/c)))
         torch.save(model.state_dict(), model_name+".pt")
+        if((epoch+1)%5==0):
+            acc=model_test(model,test_loader)
+            acc_list.append(acc)
+
+    return train_loss,acc_list
+
 
 
 

@@ -1,5 +1,16 @@
 import time
+import os
 
+import trainer
+
+os.environ["KMP_DUPLICATE_LIB_OK"]  =  "TRUE"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3,4"
+# os.environ["RANK"]="0"
+# os.environ["WORLD_SIZE"]="1"
+# os.environ["MASTER_PORT"]="5678"
+os.environ['MASTER_ADDR'] = 'localhost'
+os.environ['MASTER_PORT'] = '5678'
+import argparse
 import numpy as np
 from captum.attr import Saliency, IntegratedGradients,DeepLift,NoiseTunnel,Deconvolution,FeatureAblation,InputXGradient
 from model.DeepSleepNet import DeepSleepNet
@@ -11,9 +22,11 @@ from torch.utils.data import DataLoader
 import torch.nn as nn
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-import os
-from model import MyModel2u,MyModel6u,MyModel_RectifiedLinearAttention2u,MyModel_SAMNet,DeepSleepNet
-os.environ["KMP_DUPLICATE_LIB_OK"]  =  "TRUE"
+import torch.distributed as dist
+from model import MyModel2u,MyModel6u,MyModel_RectifiedLinearAttention2u,MyModel_SAMNet,DeepSleepNet,MyModel_easy
+
+torch.backends.cudnn.enabled = True
+torch.backends.cudnn.benchmark = True
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 class_dict = {
@@ -25,21 +38,7 @@ class_dict = {
     5: "UNKNOWN"
 }
 
-def module_test(module,test_dataloader):
 
-    total_correct = 0
-    with torch.no_grad():
-        for x, y in test_dataloader:
-            x = x.cuda()
-            y=y.cuda()
-            out = module(x)
-            pred = out.argmax(dim=1)
-            correct = pred.eq(y).sum().float().item()
-            total_correct += correct
-        total = len(test_dataloader.dataset)
-        acc = total_correct / total
-    # 准确率
-    print(acc)
 
 def captum():
     train_data= dataloader.dataset("data", mode="train", rate=0.8, load=True)
@@ -113,33 +112,17 @@ def captum():
     plt.show()
 
 
-# from torch.utils.tensorboard import SummaryWriter
-# from torchvision import datasets, transforms
-# import torchvision
-#
-# def use_tensorboard():
-#     writer = SummaryWriter()
-#
-#     transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
-#     trainset = datasets.MNIST('mnist_train', train=True, download=True, transform=transform)
-#     trainloader = torch.utils.data.DataLoader(trainset, batch_size=64, shuffle=True)
-#     model = torchvision.models.resnet50(False)
-#     # Have ResNet model take in grayscale rather than RGB
-#     model.conv1 = torch.nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
-#     images, labels = next(iter(trainloader))
-#
-#     grid = torchvision.utils.make_grid(images)
-#     writer.add_image('images', grid, 0)
-#     writer.add_graph(model, images)
-#     writer.close()
-
-
-
 if __name__ == "__main__":
-    torch.backends.cudnn.enabled = True
-    torch.backends.cudnn.benchmark = True
-    batch_size=128
-    model_name="DeepSleepNet_no_fft"
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--local_rank', default=0, type=int,
+                        help='node rank for distributed training')
+    parser.add_argument('--nnodes', default=1, type=int)
+    parser.add_argument('--nproc_per_node', default=0, type=int)
+    parser.add_argument('--node_rank', default=0, type=int)
+    # parser.add_argument('--master_port', default=6005, type=int)
+    args = parser.parse_args()
+    batch_size=32
+    model_name="MyModel2u"
     if(model_name=="MyModel2u"):
         net=MyModel2u.MyModel()
     elif(model_name=="MyModel6u"):
@@ -152,32 +135,37 @@ if __name__ == "__main__":
         net=DeepSleepNet.DeepSleepNet(in_channel=6)
     elif(model_name=="DeepSleepNet_no_fft"):
         net=DeepSleepNet.DeepSleepNet(in_channel=3)
+    elif(model_name=="MyModel_easy"):
+        net=MyModel_easy.MyModel()
+
+    # torch.distributed.init_process_group(backend="nccl",rank=0,world_size=2)
+    net.to(device)
+    print(torch.cuda.device_count()+1)
+    net = torch.nn.DataParallel(net, device_ids=range(torch.cuda.device_count()))
     if(os.path.exists(model_name+".pt")):
         net.load_state_dict(torch.load(model_name+".pt"))
+        print("load model")
 
-    net.cuda()
 
     npz_files=os.listdir("data")
     for i in range(len(npz_files)):
         npz_files[i]="data/"+npz_files[i]
 
-    t1 = time.perf_counter()
-    dataloader1= dataloader.getDataloader(npz_files[0:122], batch_size=batch_size, num_worker=0, shuffle=True)
+
+
+    trainloader= dataloader.getDataloader(npz_files[0:122], batch_size=batch_size, num_worker=0, shuffle=True,
+                                          pin_memory=True)
+
+    testloader=dataloader.getDataloader(npz_files[122:153],batch_size=batch_size,num_worker=0,shuffle=False,
+                                        pin_memory=True)
+
     print("data is ready")
-    train(net,10,dataloader1,model_name)
+    t1 = time.perf_counter()
+    loss_list,acc_list=train(net,20,trainloader,testloader,model_name)
     t2 = time.perf_counter()
     print(t2 - t1)
-
-
-    net.eval()
-    dataset1= dataloader.LoadDataset_from_numpy(npz_files[122:153])
-    dataloader1 = torch.utils.data.DataLoader(dataset=dataset1,
-                                               batch_size=batch_size,
-                                               shuffle=True,
-                                               drop_last=False,
-                                               num_workers=0)
-    module_test(net,dataloader1)
-
+    trainer.plot_acc_curve(acc_list,model_name)
+    trainer.plot_loss_curve(loss_list, model_name)
 
 # train_and_test_mymodel()
 # use_tensorboard()
